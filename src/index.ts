@@ -25,7 +25,7 @@ process.on('uncaughtException', (error) => {
 // Запуск бота
 try {
   const bot = new AmethystBot();
-  bot.start();
+  await bot.start();
 } catch (error) {
   logger.error('Failed to start bot:', error);
   process.exit(1);
