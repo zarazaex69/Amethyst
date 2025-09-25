@@ -1,5 +1,6 @@
-import type { Commit } from '../types/github';
+import type { Commit, CommitFile } from '../types/github';
 import type { UserPreferences } from '../types/bot';
+import { DIFF_CONFIG } from '../config/constants';
 
 export class SmartFormatter {
   formatCommit(commit: Commit, preferences?: UserPreferences): string {
@@ -11,11 +12,14 @@ export class SmartFormatter {
 
     const format = preferences?.format || 'markdown';
     
+    // Добавляем diff если есть файлы
+    const diffSection = this.formatDiff(commit.files);
+    
     if (format === 'html') {
-      return this.formatAsHTML(message, author, date, url, shortSha);
+      return this.formatAsHTML(message, author, date, url, shortSha) + diffSection;
     }
     
-    return this.formatAsMarkdown(message, author, date, url, shortSha);
+    return this.formatAsMarkdown(message, author, date, url, shortSha) + diffSection;
   }
 
   private formatAsMarkdown(message: string, author: string, date: string, url: string, shortSha: string): string {
@@ -62,5 +66,79 @@ export class SmartFormatter {
 
   formatNoCommits(): string {
     return '📭 Коммиты не найдены.';
+  }
+
+  private formatDiff(files?: CommitFile[]): string {
+    if (!files || files.length === 0) {
+      return '';
+    }
+
+    // Сортируем файлы по количеству изменений (топ файлы)
+    const sortedFiles = files
+      .filter(file => file.status !== 'unchanged')
+      .sort((a, b) => (b.additions + b.deletions) - (a.additions + a.deletions))
+      .slice(0, DIFF_CONFIG.MAX_FILES);
+
+    if (sortedFiles.length === 0) {
+      return '';
+    }
+
+    let diffText = '\n\n📝 **Изменения:**\n';
+    let totalLines = 0;
+
+    for (const file of sortedFiles) {
+      if (totalLines >= DIFF_CONFIG.MAX_TOTAL_LINES) {
+        diffText += `\n... и еще ${files.length - sortedFiles.indexOf(file)} файлов`;
+        break;
+      }
+
+      const fileStatus = this.getFileStatusEmoji(file.status);
+      diffText += `\n\`\`\`${file.filename}\n`;
+      
+      if (file.patch) {
+        const patchLines = file.patch.split('\n');
+        const limitedLines = patchLines.slice(0, DIFF_CONFIG.MAX_LINES_PER_FILE);
+        
+        for (const line of limitedLines) {
+          if (totalLines >= DIFF_CONFIG.MAX_TOTAL_LINES) {
+            diffText += '...\n';
+            break;
+          }
+          
+          if (line.startsWith('+')) {
+            diffText += `+ ${line.substring(1)}\n`;
+          } else if (line.startsWith('-')) {
+            diffText += `- ${line.substring(1)}\n`;
+          } else if (line.startsWith('@@')) {
+            diffText += `${line}\n`;
+          } else if (line.trim() !== '') {
+            diffText += `  ${line}\n`;
+          }
+          totalLines++;
+        }
+        
+        if (patchLines.length > DIFF_CONFIG.MAX_LINES_PER_FILE) {
+          diffText += '...\n';
+        }
+      } else {
+        // Если нет patch, показываем статистику
+        diffText += `${fileStatus} ${file.additions > 0 ? `+${file.additions}` : ''}${file.deletions > 0 ? ` -${file.deletions}` : ''}\n`;
+      }
+      
+      diffText += '```';
+    }
+
+    return diffText;
+  }
+
+  private getFileStatusEmoji(status: string): string {
+    switch (status) {
+      case 'added': return '➕';
+      case 'removed': return '➖';
+      case 'modified': return '✏️';
+      case 'renamed': return '🔄';
+      case 'copied': return '📋';
+      default: return '📄';
+    }
   }
 }

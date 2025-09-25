@@ -1,4 +1,12 @@
 {
-  "subscriptions": [],
-  "lastGlobalCheck": "2025-09-25T23:50:43.133Z"
+  "subscriptions": [
+    {
+      "id": "mg02j8e1y98y3flaz2",
+      "userId": 7504118464,
+      "username": "zarazaex69",
+      "lastCheckTime": "2025-09-25T23:53:04.057Z",
+      "isActive": true
+    }
+  ],
+  "lastGlobalCheck": "2025-09-25T23:50:43.132Z"
 }

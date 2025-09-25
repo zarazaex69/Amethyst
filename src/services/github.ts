@@ -52,6 +52,20 @@ export class GitHubService {
     }
   }
 
+  async getCommitWithFiles(username: string, repo: string, sha: string): Promise<Commit> {
+    try {
+      const { data } = await this.octokit.repos.getCommit({
+        owner: username,
+        repo,
+        ref: sha,
+      });
+      return data as Commit;
+    } catch (error) {
+      console.error('GitHub API error:', error);
+      throw new Error(`Failed to get commit details: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   async getUserInfo(username: string): Promise<GitHubUser> {
     try {
       const { data } = await this.octokit.users.getByUsername({

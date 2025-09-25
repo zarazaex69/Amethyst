@@ -115,21 +115,42 @@ export class MonitoringService {
           );
         }
 
-        // Отправляем уведомления (это будет обработано в боте)
+        // Получаем детальную информацию о коммитах с файлами
         for (const commit of newCommits) {
-          const notification: NewCommitNotification = {
-            subscription,
-            commit: {
-              sha: commit.sha,
-              message: commit.commit.message,
-              author: commit.commit.author?.name || 'Неизвестный автор',
-              date: commit.commit.author?.date || new Date().toISOString(),
-              url: commit.html_url,
-            },
-          };
-          
-          // Здесь мы будем отправлять уведомления через бота
-          await this.sendNotification(notification);
+          try {
+            // Получаем детальную информацию о коммите с файлами
+            const detailedCommit = subscription.repo 
+              ? await this.githubService.getCommitWithFiles(subscription.username, subscription.repo, commit.sha)
+              : commit;
+
+            const notification: NewCommitNotification = {
+              subscription,
+              commit: {
+                sha: detailedCommit.sha,
+                message: detailedCommit.commit.message,
+                author: detailedCommit.commit.author?.name || 'Неизвестный автор',
+                date: detailedCommit.commit.author?.date || new Date().toISOString(),
+                url: detailedCommit.html_url,
+              },
+            };
+            
+            // Отправляем уведомления с детальной информацией
+            await this.sendNotification(notification, detailedCommit);
+          } catch (error) {
+            logger.error(`Error getting detailed commit info for ${commit.sha}:`, error);
+            // Fallback к базовому уведомлению
+            const notification: NewCommitNotification = {
+              subscription,
+              commit: {
+                sha: commit.sha,
+                message: commit.commit.message,
+                author: commit.commit.author?.name || 'Неизвестный автор',
+                date: commit.commit.author?.date || new Date().toISOString(),
+                url: commit.html_url,
+              },
+            };
+            await this.sendNotification(notification, commit);
+          }
         }
       }
     } catch (error) {
@@ -155,9 +176,9 @@ export class MonitoringService {
     return commits.slice(0, lastCommitIndex);
   }
 
-  private async sendNotification(notification: NewCommitNotification): Promise<void> {
+  private async sendNotification(notification: NewCommitNotification, commit?: Commit): Promise<void> {
     try {
-      const formattedMessage = this.formatNotification(notification);
+      const formattedMessage = this.formatNotification(notification, commit);
       
       if (this.bot) {
         await this.bot.api.sendMessage(notification.subscription.userId, formattedMessage, {
@@ -172,23 +193,26 @@ export class MonitoringService {
     }
   }
 
-  private formatNotification(notification: NewCommitNotification): string {
-    const { subscription, commit } = notification;
+  private formatNotification(notification: NewCommitNotification, commit?: Commit): string {
+    const { subscription, commit: notificationCommit } = notification;
     const repoText = subscription.repo ? ` в репозитории \`${subscription.repo}\`` : '';
+    
+    // Используем детальный коммит если доступен, иначе базовый
+    const commitToFormat = commit || {
+      sha: notificationCommit.sha,
+      commit: {
+        message: notificationCommit.message,
+        author: {
+          name: notificationCommit.author,
+          date: notificationCommit.date,
+        },
+      },
+      html_url: notificationCommit.url,
+    };
     
     return `🆕 **Новый коммит от ${subscription.username}${repoText}**
 
-${this.formatter.formatCommit({
-  sha: commit.sha,
-  commit: {
-    message: commit.message,
-    author: {
-      name: commit.author,
-      date: commit.date,
-    },
-  },
-  html_url: commit.url,
-})}`;
+${this.formatter.formatCommit(commitToFormat)}`;
   }
 
   isMonitoringActive(): boolean {

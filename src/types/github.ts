@@ -13,6 +13,16 @@ export interface Commit {
     deletions?: number;
     total?: number;
   };
+  files?: CommitFile[];
+}
+
+export interface CommitFile {
+  filename: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+  patch?: string;
 }
 
 export interface GitHubUser {
