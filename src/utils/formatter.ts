@@ -1,9 +1,10 @@
 import type { Commit, CommitFile } from '../types/github';
 import type { UserPreferences } from '../types/bot';
+import type { AIAnalysisResult } from '../services/ai-analysis';
 import { DIFF_CONFIG } from '../config/constants';
 
 export class SmartFormatter {
-  formatCommit(commit: Commit, preferences?: UserPreferences): string {
+  formatCommit(commit: Commit, preferences?: UserPreferences, aiAnalysis?: AIAnalysisResult): string {
     const message = this.truncateMessage(commit.commit.message);
     const author = commit.commit.author?.name || 'Неизвестный автор';
     const date = this.formatDate(commit.commit.author?.date || new Date().toISOString());
@@ -15,11 +16,14 @@ export class SmartFormatter {
     // Добавляем diff если есть файлы
     const diffSection = this.formatDiff(commit.files);
     
+    // Добавляем ИИ анализ если доступен
+    const aiSection = aiAnalysis ? this.formatAIAnalysis(aiAnalysis) : '';
+    
     if (format === 'html') {
-      return this.formatAsHTML(message, author, date, url, shortSha) + diffSection;
+      return this.formatAsHTML(message, author, date, url, shortSha) + diffSection + aiSection;
     }
     
-    return this.formatAsMarkdown(message, author, date, url, shortSha) + diffSection;
+    return this.formatAsMarkdown(message, author, date, url, shortSha) + diffSection + aiSection;
   }
 
   private formatAsMarkdown(message: string, author: string, date: string, url: string, shortSha: string): string {
@@ -139,6 +143,55 @@ export class SmartFormatter {
       case 'renamed': return '🔄';
       case 'copied': return '📋';
       default: return '📄';
+    }
+  }
+
+  private formatAIAnalysis(analysis: AIAnalysisResult): string {
+    let aiText = '\n\n🤖 **ИИ Анализ:**\n';
+    
+    // Краткое описание
+    aiText += `📝 **Описание:** ${analysis.summary}\n`;
+    
+    // Уровень воздействия
+    const impactEmoji = this.getImpactEmoji(analysis.impact);
+    aiText += `${impactEmoji} **Воздействие:** ${this.getImpactText(analysis.impact)}\n`;
+    
+    // Категории
+    if (analysis.categories && analysis.categories.length > 0) {
+      aiText += `🏷️ **Категории:** ${analysis.categories.join(', ')}\n`;
+    }
+    
+    // Предложения
+    if (analysis.suggestions && analysis.suggestions.length > 0) {
+      aiText += `💡 **Предложения:**\n`;
+      analysis.suggestions.forEach(suggestion => {
+        aiText += `   • ${suggestion}\n`;
+      });
+    }
+    
+    // Технические детали
+    if (analysis.technicalDetails) {
+      aiText += `🔧 **Технические детали:** ${analysis.technicalDetails}\n`;
+    }
+    
+    return aiText;
+  }
+
+  private getImpactEmoji(impact: string): string {
+    switch (impact) {
+      case 'low': return '🟢';
+      case 'medium': return '🟡';
+      case 'high': return '🔴';
+      default: return '⚪';
+    }
+  }
+
+  private getImpactText(impact: string): string {
+    switch (impact) {
+      case 'low': return 'Низкое';
+      case 'medium': return 'Среднее';
+      case 'high': return 'Высокое';
+      default: return 'Неизвестно';
     }
   }
 }

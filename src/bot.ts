@@ -7,6 +7,7 @@ import { SubscribeCommand } from './commands/subscribe';
 import { UnsubscribeCommand } from './commands/unsubscribe';
 import { SubscriptionsCommand } from './commands/subscriptions';
 import { MonitoringService } from './services/monitoring';
+import { SubscriptionService } from './services/subscription';
 import { logger } from './services/logger';
 
 export class AmethystBot {
@@ -18,16 +19,21 @@ export class AmethystBot {
   private unsubscribeCommand: UnsubscribeCommand;
   private subscriptionsCommand: SubscriptionsCommand;
   private monitoringService: MonitoringService;
+  private subscriptionService: SubscriptionService;
 
   constructor() {
     this.bot = new Bot(config.telegram.token);
+    
+    // Создаем общий экземпляр сервиса подписок
+    this.subscriptionService = new SubscriptionService();
+    
     this.monitCommand = new MonitCommand();
     this.helpCommand = new HelpCommand();
     this.startCommand = new StartCommand();
-    this.subscribeCommand = new SubscribeCommand();
-    this.unsubscribeCommand = new UnsubscribeCommand();
-    this.subscriptionsCommand = new SubscriptionsCommand();
-    this.monitoringService = new MonitoringService();
+    this.subscribeCommand = new SubscribeCommand(this.subscriptionService);
+    this.unsubscribeCommand = new UnsubscribeCommand(this.subscriptionService);
+    this.subscriptionsCommand = new SubscriptionsCommand(this.subscriptionService);
+    this.monitoringService = new MonitoringService(this.subscriptionService);
     
     this.setupCommands();
     this.setupErrorHandling();

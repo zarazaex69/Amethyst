@@ -5,8 +5,8 @@ import { logger } from '../services/logger';
 export class SubscriptionsCommand {
   private subscriptionService: SubscriptionService;
 
-  constructor() {
-    this.subscriptionService = new SubscriptionService();
+  constructor(subscriptionService?: SubscriptionService) {
+    this.subscriptionService = subscriptionService || new SubscriptionService();
   }
 
   async execute(ctx: Context): Promise<void> {

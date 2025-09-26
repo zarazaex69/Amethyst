@@ -1,5 +1,6 @@
 import { Context } from 'grammy';
 import { GitHubService } from '../../services/github';
+import { AIAnalysisService } from '../../services/ai-analysis';
 import { SmartFormatter } from '../../utils/formatter';
 import { Validator } from '../../utils/validator';
 import { MESSAGES } from '../../config/constants';
@@ -7,10 +8,20 @@ import { logger } from '../../services/logger';
 
 export class MonitCommand {
   private githubService: GitHubService;
+  private aiAnalysisService: AIAnalysisService;
   private formatter: SmartFormatter;
 
   constructor() {
     this.githubService = new GitHubService();
+    
+    // Инициализируем ИИ сервис только если API ключ доступен
+    try {
+      this.aiAnalysisService = new AIAnalysisService();
+    } catch (error) {
+      logger.warn('AI Analysis service disabled - ZhipuAI API key not configured');
+      this.aiAnalysisService = null as any;
+    }
+    
     this.formatter = new SmartFormatter();
   }
 
@@ -42,10 +53,26 @@ export class MonitCommand {
 
       logger.info(`Found ${commits.length} commits`);
 
-      // Отправляем каждый коммит отдельным сообщением
+      // Отправляем каждый коммит отдельным сообщением с ИИ анализом
       for (const commit of commits) {
         try {
-          const formattedMessage = this.formatter.formatCommit(commit);
+          // Получаем детальную информацию о коммите с файлами
+          const detailedCommit = repo 
+            ? await this.githubService.getCommitWithFiles(username!, repo, commit.sha)
+            : commit;
+
+          // Получаем ИИ анализ если сервис доступен
+          let aiAnalysis;
+          if (this.aiAnalysisService) {
+            try {
+              aiAnalysis = await this.aiAnalysisService.analyzeCommit(detailedCommit);
+            } catch (error) {
+              logger.warn('AI analysis failed, continuing without it:', error);
+              aiAnalysis = undefined;
+            }
+          }
+
+          const formattedMessage = this.formatter.formatCommit(detailedCommit, undefined, aiAnalysis);
           await ctx.reply(formattedMessage, { parse_mode: 'Markdown' });
         } catch (error) {
           logger.error('Error formatting commit:', error);

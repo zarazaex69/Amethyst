@@ -1,5 +1,6 @@
 import { GitHubService } from './github';
 import { SubscriptionService } from './subscription';
+import { AIAnalysisService } from './ai-analysis';
 import { SmartFormatter } from '../utils/formatter';
 import { logger } from './logger';
 import type { Subscription, NewCommitNotification } from '../types/subscription';
@@ -9,14 +10,24 @@ import { Bot } from 'grammy';
 export class MonitoringService {
   private githubService: GitHubService;
   private subscriptionService: SubscriptionService;
+  private aiAnalysisService: AIAnalysisService;
   private formatter: SmartFormatter;
   private bot: Bot | null = null;
   private isRunning: boolean = false;
   private checkInterval: NodeJS.Timeout | null = null;
 
-  constructor() {
+  constructor(subscriptionService?: SubscriptionService) {
     this.githubService = new GitHubService();
-    this.subscriptionService = new SubscriptionService();
+    this.subscriptionService = subscriptionService || new SubscriptionService();
+    
+    // Инициализируем ИИ сервис только если API ключ доступен
+    try {
+      this.aiAnalysisService = new AIAnalysisService();
+    } catch (error) {
+      logger.warn('AI Analysis service disabled - ZhipuAI API key not configured');
+      this.aiAnalysisService = null as any;
+    }
+    
     this.formatter = new SmartFormatter();
   }
 
@@ -26,7 +37,17 @@ export class MonitoringService {
 
   async initialize(): Promise<void> {
     await this.subscriptionService.initialize();
-    logger.info('Monitoring service initialized');
+    
+    // Проверяем количество активных подписок при инициализации
+    const activeSubscriptions = await this.subscriptionService.getAllActiveSubscriptions();
+    logger.info(`Monitoring service initialized with ${activeSubscriptions.length} active subscriptions`);
+    
+    if (activeSubscriptions.length > 0) {
+      logger.info('Active subscriptions:');
+      activeSubscriptions.forEach(sub => {
+        logger.info(`  - User ${sub.userId}: ${sub.username}${sub.repo ? `/${sub.repo}` : ''}`);
+      });
+    }
   }
 
   start(intervalMinutes: number = 5): void {
@@ -72,7 +93,10 @@ export class MonitoringService {
         return;
       }
 
-      logger.info(`Checking ${subscriptions.length} subscriptions`);
+      logger.info(`Checking ${subscriptions.length} subscriptions:`);
+      subscriptions.forEach(sub => {
+        logger.info(`  - User ${sub.userId}: ${sub.username}${sub.repo ? `/${sub.repo}` : ''} (last commit: ${sub.lastCommitSha || 'none'})`);
+      });
 
       for (const subscription of subscriptions) {
         try {
@@ -178,7 +202,18 @@ export class MonitoringService {
 
   private async sendNotification(notification: NewCommitNotification, commit?: Commit): Promise<void> {
     try {
-      const formattedMessage = this.formatNotification(notification, commit);
+      // Получаем ИИ анализ если доступен детальный коммит и ИИ сервис
+      let aiAnalysis;
+      if (commit && this.aiAnalysisService) {
+        try {
+          aiAnalysis = await this.aiAnalysisService.analyzeCommit(commit);
+        } catch (error) {
+          logger.warn('AI analysis failed for notification, continuing without it:', error);
+          aiAnalysis = undefined;
+        }
+      }
+
+      const formattedMessage = this.formatNotification(notification, commit, aiAnalysis);
       
       if (this.bot) {
         await this.bot.api.sendMessage(notification.subscription.userId, formattedMessage, {
@@ -193,7 +228,7 @@ export class MonitoringService {
     }
   }
 
-  private formatNotification(notification: NewCommitNotification, commit?: Commit): string {
+  private formatNotification(notification: NewCommitNotification, commit?: Commit, aiAnalysis?: any): string {
     const { subscription, commit: notificationCommit } = notification;
     const repoText = subscription.repo ? ` в репозитории \`${subscription.repo}\`` : '';
     
@@ -212,7 +247,7 @@ export class MonitoringService {
     
     return `🆕 **Новый коммит от ${subscription.username}${repoText}**
 
-${this.formatter.formatCommit(commitToFormat)}`;
+${this.formatter.formatCommit(commitToFormat, undefined, aiAnalysis)}`;
   }
 
   isMonitoringActive(): boolean {

@@ -14,7 +14,7 @@ export const GITHUB_API = {
 } as const;
 
 export const MONITORING = {
-  CHECK_INTERVAL_MINUTES: 5, // Интервал проверки новых коммитов
+  CHECK_INTERVAL_MINUTES: 1, // Интервал проверки новых коммитов
   MAX_NOTIFICATIONS_PER_CYCLE: 10, // Максимум уведомлений за один цикл
   DATA_DIR: 'data', // Директория для хранения данных
 } as const;
