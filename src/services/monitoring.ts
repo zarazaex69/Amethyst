@@ -125,8 +125,15 @@ export class MonitoringService {
         return;
       }
 
+      logger.info(`Found ${commits.length} commits for ${subscription.username}${subscription.repo ? `/${subscription.repo}` : ''}`);
+      commits.forEach(commit => {
+        logger.info(`  - ${commit.sha.substring(0, 7)}: ${commit.commit.message.substring(0, 50)}...`);
+      });
+
       // Находим новые коммиты
       const newCommits = this.findNewCommits(subscription, commits);
+      
+      logger.info(`Checking for new commits. Last known: ${subscription.lastCommitSha || 'none'}, Found: ${newCommits.length} new commits`);
       
       if (newCommits.length > 0) {
         logger.info(`Found ${newCommits.length} new commits for ${subscription.username}`);
@@ -246,7 +253,7 @@ export class MonitoringService {
       html_url: notificationCommit.url,
     };
     
-    return `🆕 **Новый коммит от ${subscription.username}${repoText}**
+    return `🚀 **Новый коммит от ${subscription.username}${repoText}**
 
 ${this.formatter.formatCommit(commitToFormat, undefined, aiAnalysis)}`;
   }

@@ -27,12 +27,12 @@ export class SmartFormatter {
   }
 
   private formatAsMarkdown(message: string, author: string, date: string, url: string, shortSha: string): string {
-    return `🔍 **${message}**
+    return `📝 **${message}**
 
 👤 **Автор:** ${author}
 📅 **Дата:** ${date}
 🔗 **Ссылка:** [Открыть на GitHub](${url})
- **Хеш:** \`${shortSha}\``;
+🔑 **Хеш:** \`${shortSha}\``;
   }
 
   private formatAsHTML(message: string, author: string, date: string, url: string, shortSha: string): string {
@@ -87,7 +87,7 @@ export class SmartFormatter {
       return '';
     }
 
-    let diffText = '\n\n📝 **Изменения:**\n';
+    let diffText = '\n\n📊 **Изменения:**\n';
     let totalLines = 0;
 
     for (const file of sortedFiles) {
@@ -126,7 +126,10 @@ export class SmartFormatter {
         }
       } else {
         // Если нет patch, показываем статистику
-        diffText += `${fileStatus} ${file.additions > 0 ? `+${file.additions}` : ''}${file.deletions > 0 ? ` -${file.deletions}` : ''}\n`;
+        const stats = [];
+        if (file.additions > 0) stats.push(`+${file.additions}`);
+        if (file.deletions > 0) stats.push(`-${file.deletions}`);
+        diffText += `${fileStatus} ${stats.join(' ')}\n`;
       }
       
       diffText += '```';
@@ -150,28 +153,18 @@ export class SmartFormatter {
     let aiText = '\n\n🤖 **ИИ Анализ:**\n';
     
     // Краткое описание
-    aiText += `📝 **Описание:** ${analysis.summary}\n`;
+    aiText += `📝 ${analysis.summary}\n`;
     
-    // Уровень воздействия
+    // Уровень воздействия и категории в одной строке
     const impactEmoji = this.getImpactEmoji(analysis.impact);
-    aiText += `${impactEmoji} **Воздействие:** ${this.getImpactText(analysis.impact)}\n`;
+    const categories = analysis.categories && analysis.categories.length > 0 
+      ? ` • ${analysis.categories.join(', ')}` 
+      : '';
+    aiText += `${impactEmoji} **${this.getImpactText(analysis.impact)}**${categories}\n`;
     
-    // Категории
-    if (analysis.categories && analysis.categories.length > 0) {
-      aiText += `🏷️ **Категории:** ${analysis.categories.join(', ')}\n`;
-    }
-    
-    // Предложения
+    // Предложения (только если есть)
     if (analysis.suggestions && analysis.suggestions.length > 0) {
-      aiText += `💡 **Предложения:**\n`;
-      analysis.suggestions.forEach(suggestion => {
-        aiText += `   • ${suggestion}\n`;
-      });
-    }
-    
-    // Технические детали
-    if (analysis.technicalDetails) {
-      aiText += `🔧 **Технические детали:** ${analysis.technicalDetails}\n`;
+      aiText += `💡 ${analysis.suggestions.slice(0, 2).join(' • ')}\n`;
     }
     
     return aiText;

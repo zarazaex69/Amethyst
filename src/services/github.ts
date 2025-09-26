@@ -29,13 +29,19 @@ export class GitHubService {
           sort: 'updated',
         });
 
-        // Фильтруем репозитории - исключаем пустые и форки
+        // Отладочная информация о репозиториях
+        console.log(`Found ${repos.length} repositories for user ${username}`);
+        repos.forEach(repo => {
+          console.log(`  - ${repo.name}: fork=${repo.fork}, size=${repo.size}, updated=${repo.updated_at}`);
+        });
+
+        // Фильтруем репозитории - исключаем только форки, но разрешаем пустые репозитории
         const activeRepos = repos.filter(repo => 
           !repo.fork && 
-          (repo.size || 0) > 0 && 
-          repo.updated_at && 
-          new Date(repo.updated_at) > new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Активны за последний год
+          repo.updated_at // Только проверяем, что репозиторий был обновлен
         );
+
+        console.log(`After filtering: ${activeRepos.length} active repositories`);
 
         if (activeRepos.length === 0) {
           console.warn(`No active repositories found for user ${username}`);
@@ -54,7 +60,9 @@ export class GitHubService {
             } catch (error: any) {
               // Игнорируем ошибки пустых репозиториев и других проблем
               if (error.status === 409 && error.message?.includes('Git Repository is empty')) {
-                console.warn(`Repository ${repository.name} is empty, skipping...`);
+                console.log(`Repository ${repository.name} is empty, skipping...`);
+              } else if (error.status === 404) {
+                console.log(`Repository ${repository.name} not found, skipping...`);
               } else {
                 console.warn(`Failed to get commits from ${repository.name}:`, error.message || error);
               }
