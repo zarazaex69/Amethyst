@@ -121,6 +121,7 @@ export class MonitoringService {
       );
 
       if (commits.length === 0) {
+        logger.info(`No commits found for ${subscription.username}${subscription.repo ? `/${subscription.repo}` : ''}`);
         return;
       }
 

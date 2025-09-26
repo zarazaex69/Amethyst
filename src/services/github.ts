@@ -26,10 +26,24 @@ export class GitHubService {
         const { data: repos } = await this.octokit.repos.listForUser({
           username,
           per_page: GITHUB_API.MAX_REPOS,
+          sort: 'updated',
         });
 
+        // Фильтруем репозитории - исключаем пустые и форки
+        const activeRepos = repos.filter(repo => 
+          !repo.fork && 
+          repo.size > 0 && 
+          repo.updated_at && 
+          new Date(repo.updated_at) > new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Активны за последний год
+        );
+
+        if (activeRepos.length === 0) {
+          console.warn(`No active repositories found for user ${username}`);
+          return [];
+        }
+
         const commits = await Promise.all(
-          repos.map(async (repository) => {
+          activeRepos.map(async (repository) => {
             try {
               const { data } = await this.octokit.repos.listCommits({
                 owner: username,
@@ -37,8 +51,13 @@ export class GitHubService {
                 per_page: 1,
               });
               return data[0];
-            } catch (error) {
-              console.warn(`Failed to get commits from ${repository.name}:`, error);
+            } catch (error: any) {
+              // Игнорируем ошибки пустых репозиториев и других проблем
+              if (error.status === 409 && error.message?.includes('Git Repository is empty')) {
+                console.warn(`Repository ${repository.name} is empty, skipping...`);
+              } else {
+                console.warn(`Failed to get commits from ${repository.name}:`, error.message || error);
+              }
               return null;
             }
           })
@@ -46,8 +65,21 @@ export class GitHubService {
 
         return commits.filter(Boolean) as Commit[];
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('GitHub API error:', error);
+      
+      // Если это ошибка 404 (пользователь не найден), возвращаем пустой массив
+      if (error.status === 404) {
+        console.warn(`User ${username} not found`);
+        return [];
+      }
+      
+      // Если это ошибка 403 (доступ запрещен), возвращаем пустой массив
+      if (error.status === 403) {
+        console.warn(`Access denied for user ${username}`);
+        return [];
+      }
+      
       throw new Error(`GitHub API error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
