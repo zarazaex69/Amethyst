@@ -90,7 +90,7 @@ export class SmartFormatter {
       return '';
     }
 
-    let diffText = '\n\n📊 **Изменения:**\n';
+    let diffText = '\n\n📊 <b>Изменения:</b>\n';
     let totalLines = 0;
 
     for (const file of sortedFiles) {

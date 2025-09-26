@@ -298,7 +298,7 @@ export class MonitoringService {
       html_url: notificationCommit.url,
     };
     
-    return `🚀 **Новый коммит от ${subscription.username}${repoText}**
+    return `🚀 <b>Новый коммит от ${subscription.username}${repoText}</b>
 
 ${this.formatter.formatCommit(commitToFormat, undefined, aiAnalysis)}`;
   }
