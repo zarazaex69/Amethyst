@@ -1,6 +1,7 @@
 import { GitHubService } from './github';
 import { SubscriptionService } from './subscription';
 import { AIAnalysisService } from './ai-analysis';
+import { GitHubIssuesService } from './github-issues';
 import { SmartFormatter } from '../utils/formatter';
 import { logger } from './logger';
 import type { Subscription, NewCommitNotification } from '../types/subscription';
@@ -11,6 +12,7 @@ export class MonitoringService {
   private githubService: GitHubService;
   private subscriptionService: SubscriptionService;
   private aiAnalysisService: AIAnalysisService;
+  private issuesService: GitHubIssuesService;
   private formatter: SmartFormatter;
   private bot: Bot | null = null;
   private isRunning: boolean = false;
@@ -28,6 +30,7 @@ export class MonitoringService {
       this.aiAnalysisService = null as any;
     }
     
+    this.issuesService = new GitHubIssuesService();
     this.formatter = new SmartFormatter();
   }
 
@@ -187,6 +190,29 @@ export class MonitoringService {
             // Отправляем уведомления с детальной информацией
             logger.info(`Sending notification for commit ${detailedCommit.sha} with ${detailedCommit.files?.length || 0} files`);
             await this.sendNotification(notification, detailedCommit);
+            
+            // Автоматически создаем GitHub Issue с ИИ ревью
+            try {
+              const repoName = subscription.repo || await this.getRepoNameFromCommit(detailedCommit);
+              if (repoName) {
+                const issueReview = await this.issuesService.createCommitReviewIssue(
+                  subscription.username, 
+                  repoName, 
+                  detailedCommit, 
+                  true
+                );
+                
+                const issueUrl = await this.issuesService.createIssueInRepository(
+                  subscription.username, 
+                  repoName, 
+                  issueReview
+                );
+                
+                logger.info(`Created automatic review issue: ${issueUrl}`);
+              }
+            } catch (error) {
+              logger.warn('Failed to create automatic review issue:', error);
+            }
           } catch (error) {
             logger.error(`Error getting detailed commit info for ${commit.sha}:`, error);
             // Fallback к базовому уведомлению
@@ -279,5 +305,20 @@ ${this.formatter.formatCommit(commitToFormat, undefined, aiAnalysis)}`;
 
   isMonitoringActive(): boolean {
     return this.isRunning;
+  }
+
+  private async getRepoNameFromCommit(commit: Commit): Promise<string | null> {
+    try {
+      // Извлекаем имя репозитория из URL коммита
+      const url = commit.html_url;
+      const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)\/commit\//);
+      if (match && match[2]) {
+        return match[2];
+      }
+      return null;
+    } catch (error) {
+      logger.warn('Failed to extract repo name from commit URL:', error);
+      return null;
+    }
   }
 }

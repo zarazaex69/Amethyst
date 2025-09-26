@@ -6,6 +6,7 @@ import { StartCommand } from './commands/start';
 import { SubscribeCommand } from './commands/subscribe';
 import { UnsubscribeCommand } from './commands/unsubscribe';
 import { SubscriptionsCommand } from './commands/subscriptions';
+import { CommentCommand } from './commands/comment';
 import { MonitoringService } from './services/monitoring';
 import { SubscriptionService } from './services/subscription';
 import { logger } from './services/logger';
@@ -18,6 +19,7 @@ export class AmethystBot {
   private subscribeCommand: SubscribeCommand;
   private unsubscribeCommand: UnsubscribeCommand;
   private subscriptionsCommand: SubscriptionsCommand;
+  private commentCommand: CommentCommand;
   private monitoringService: MonitoringService;
   private subscriptionService: SubscriptionService;
 
@@ -33,6 +35,7 @@ export class AmethystBot {
     this.subscribeCommand = new SubscribeCommand(this.subscriptionService);
     this.unsubscribeCommand = new UnsubscribeCommand(this.subscriptionService);
     this.subscriptionsCommand = new SubscriptionsCommand(this.subscriptionService);
+    this.commentCommand = new CommentCommand();
     this.monitoringService = new MonitoringService(this.subscriptionService);
     
     this.setupCommands();
@@ -46,6 +49,7 @@ export class AmethystBot {
     this.bot.command('subscribe', (ctx) => this.subscribeCommand.execute(ctx));
     this.bot.command('unsubscribe', (ctx) => this.unsubscribeCommand.execute(ctx));
     this.bot.command('subscriptions', (ctx) => this.subscriptionsCommand.execute(ctx));
+    this.bot.command('comment', (ctx) => this.commentCommand.execute(ctx));
   }
 
   private setupErrorHandling(): void {
@@ -56,7 +60,7 @@ export class AmethystBot {
 
   public async start(): Promise<void> {
     try {
-      // Инициализируем сервис мониторинга
+      // Инициализируем 
       await this.monitoringService.initialize();
       
       // Передаем ссылку на бота в сервис мониторинга
