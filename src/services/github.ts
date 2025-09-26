@@ -32,7 +32,7 @@ export class GitHubService {
         // Фильтруем репозитории - исключаем пустые и форки
         const activeRepos = repos.filter(repo => 
           !repo.fork && 
-          repo.size > 0 && 
+          (repo.size || 0) > 0 && 
           repo.updated_at && 
           new Date(repo.updated_at) > new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Активны за последний год
         );
