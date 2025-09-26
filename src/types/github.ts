@@ -38,4 +38,6 @@ export interface GitHubRepo {
   description?: string | null;
   html_url: string;
   updated_at: string | null | undefined;
+  fork?: boolean;
+  size?: number;
 }

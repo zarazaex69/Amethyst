@@ -74,8 +74,11 @@ export class SmartFormatter {
 
   private formatDiff(files?: CommitFile[]): string {
     if (!files || files.length === 0) {
+      console.log('No files provided for diff formatting');
       return '';
     }
+
+    console.log(`Formatting diff for ${files.length} files`);
 
     // Сортируем файлы по количеству изменений (топ файлы)
     const sortedFiles = files

@@ -151,9 +151,27 @@ export class MonitoringService {
         for (const commit of newCommits) {
           try {
             // Получаем детальную информацию о коммите с файлами
-            const detailedCommit = subscription.repo 
-              ? await this.githubService.getCommitWithFiles(subscription.username, subscription.repo, commit.sha)
-              : commit;
+            let detailedCommit = commit;
+            
+            // Если подписка на конкретный репозиторий, получаем детальную информацию
+            if (subscription.repo) {
+              detailedCommit = await this.githubService.getCommitWithFiles(subscription.username, subscription.repo, commit.sha);
+            } else {
+              // Если подписка на все репозитории, пытаемся получить детальную информацию из любого репозитория
+              try {
+                // Получаем список репозиториев пользователя
+                const repos = await this.githubService.getUserRepos(subscription.username);
+                if (repos.length > 0) {
+                  // Пытаемся получить детальную информацию из первого активного репозитория
+                  const activeRepo = repos.find(repo => !repo.fork && repo.size && repo.size > 0);
+                  if (activeRepo) {
+                    detailedCommit = await this.githubService.getCommitWithFiles(subscription.username, activeRepo.name, commit.sha);
+                  }
+                }
+              } catch (error) {
+                logger.warn('Failed to get detailed commit info, using basic commit:', error);
+              }
+            }
 
             const notification: NewCommitNotification = {
               subscription,
@@ -167,6 +185,7 @@ export class MonitoringService {
             };
             
             // Отправляем уведомления с детальной информацией
+            logger.info(`Sending notification for commit ${detailedCommit.sha} with ${detailedCommit.files?.length || 0} files`);
             await this.sendNotification(notification, detailedCommit);
           } catch (error) {
             logger.error(`Error getting detailed commit info for ${commit.sha}:`, error);
