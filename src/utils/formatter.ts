@@ -112,14 +112,22 @@ export class SmartFormatter {
             break;
           }
           
+          // Экранируем HTML символы для корректного отображения в Telegram
+          const escapedLine = line
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+          
           if (line.startsWith('+')) {
-            diffText += `+ ${line.substring(1)}\n`;
+            diffText += `+ ${escapedLine.substring(1)}\n`;
           } else if (line.startsWith('-')) {
-            diffText += `- ${line.substring(1)}\n`;
+            diffText += `- ${escapedLine.substring(1)}\n`;
           } else if (line.startsWith('@@')) {
-            diffText += `${line}\n`;
+            diffText += `${escapedLine}\n`;
           } else if (line.trim() !== '') {
-            diffText += `  ${line}\n`;
+            diffText += `  ${escapedLine}\n`;
           }
           totalLines++;
         }
