@@ -225,7 +225,7 @@ export class MonitoringService {
       
       if (this.bot) {
         await this.bot.api.sendMessage(notification.subscription.userId, formattedMessage, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         });
         logger.info(`Sent notification to user ${notification.subscription.userId}`);
       } else {

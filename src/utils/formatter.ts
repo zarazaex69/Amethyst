@@ -11,7 +11,7 @@ export class SmartFormatter {
     const url = commit.html_url;
     const shortSha = commit.sha.substring(0, 7);
 
-    const format = preferences?.format || 'markdown';
+    const format = preferences?.format || 'html';
     
     // Добавляем diff если есть файлы
     const diffSection = this.formatDiff(commit.files);
@@ -36,12 +36,12 @@ export class SmartFormatter {
   }
 
   private formatAsHTML(message: string, author: string, date: string, url: string, shortSha: string): string {
-    return `🔍 <b>${message}</b>
+    return `📝 <b>${message}</b>
 
 👤 <b>Автор:</b> ${author}
 📅 <b>Дата:</b> ${date}
 🔗 <b>Ссылка:</b> <a href="${url}">Открыть на GitHub</a>
- <b>Хеш:</b> <code>${shortSha}</code>`;
+🔑 <b>Хеш:</b> <code>${shortSha}</code>`;
   }
 
   private truncateMessage(message: string, maxLength: number = 50): string {
@@ -150,7 +150,7 @@ export class SmartFormatter {
   }
 
   private formatAIAnalysis(analysis: AIAnalysisResult): string {
-    let aiText = '\n\n🤖 **ИИ Анализ:**\n';
+    let aiText = '\n\n🤖 <b>ИИ Анализ:</b>\n';
     
     // Краткое описание
     aiText += `📝 ${analysis.summary}\n`;
@@ -160,7 +160,7 @@ export class SmartFormatter {
     const categories = analysis.categories && analysis.categories.length > 0 
       ? ` • ${analysis.categories.join(', ')}` 
       : '';
-    aiText += `${impactEmoji} **${this.getImpactText(analysis.impact)}**${categories}\n`;
+    aiText += `${impactEmoji} <b>${this.getImpactText(analysis.impact)}</b>${categories}\n`;
     
     // Предложения (только если есть)
     if (analysis.suggestions && analysis.suggestions.length > 0) {
